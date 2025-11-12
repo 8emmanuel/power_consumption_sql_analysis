@@ -1,0 +1,84 @@
+The dataset used in this analysis was sourced from Maven Analytics.
+It contains detailed household electricity usage data, including measurements of active and reactive power, voltage, current intensity, and sub-metering values recorded over time.
+
+First step was to write a query creating a structured table so that I would be able to import my data into pgAdmin.
+The create table query is as follows:
+
+CREATE TABLE power_consumption (
+    id                  SERIAL PRIMARY KEY,
+    date_time           TIMESTAMP,
+    global_active_power NUMERIC(8,3),
+    global_reactive_power NUMERIC(8,3),
+    voltage             NUMERIC(8,2),
+    global_intensity    NUMERIC(8,2),
+    sub_metering_1      NUMERIC(8,2),
+    sub_metering_2      NUMERIC(8,2),
+    sub_metering_3      NUMERIC(8,2)
+);
+
+Queries used for analysis below:
+
+1. Check total number of records and data range
+
+SELECT 
+    COUNT(*) AS total_records,
+    MIN(date_time) AS start_date,
+    MAX(date_time) AS end_date
+FROM power_consumption;
+
+2. Daily average of global active power
+
+SELECT 
+    DATE(date_time) AS date,
+    ROUND(AVG(global_active_power), 3) AS avg_daily_power_kw
+FROM power_consumption
+GROUP BY DATE(date_time)
+ORDER BY date;
+
+3. Hourly consumption pattern
+
+SELECT 
+    EXTRACT(HOUR FROM date_time) AS hour,
+    ROUND(AVG(global_active_power), 3) AS avg_power_kw
+FROM power_consumption
+GROUP BY EXTRACT(HOUR FROM date_time)
+ORDER BY hour;
+
+4. Top 10 highest power usage timestamps
+
+SELECT 
+    date_time,
+    global_active_power
+FROM power_consumption
+ORDER BY global_active_power DESC
+LIMIT 10;
+
+5. Correlation between voltage and global active power
+
+SELECT 
+    ROUND(CORR(voltage, global_active_power), 3) AS voltage_power_correlation
+FROM power_consumption;
+
+6. Detect missing or null readings
+
+SELECT 
+    COUNT(*) AS null_rows
+FROM power_consumption
+WHERE global_active_power IS NULL
+   OR voltage IS NULL
+   OR global_reactive_power IS NULL;
+
+7. Identify peak usage days of the week
+
+SELECT 
+    TO_CHAR(date_time, 'Day') AS weekday,
+    ROUND(AVG(global_active_power), 3) AS avg_power_kw
+FROM power_consumption
+GROUP BY TO_CHAR(date_time, 'Day'), EXTRACT(DOW FROM date_time)
+ORDER BY EXTRACT(DOW FROM date_time);
+
+8. Estimate total household energy usage (in kWh)
+
+SELECT 
+    ROUND(SUM(global_active_power) / 60, 2) AS total_energy_kwh
+FROM power_consumption;
